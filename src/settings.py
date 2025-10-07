@@ -23,6 +23,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "vercel.app",
     "flowstack-backend.onrender.com",
+    "https://flowstack-gamma.vercel.app"
     
 ]
 
