@@ -30,15 +30,14 @@ ALLOWED_HOSTS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", 
     "https://flowstack-backend.onrender.com",
-    "https://flowstack.vercel.app",
-
+    "https://flowstack-gamma.vercel.app",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://flowstack-backend.onrender.com",
-    "https://flowstack.vercel.app",
+    "https://flowstack-gamma.vercel.app",
 ]
 
 # Application definition
