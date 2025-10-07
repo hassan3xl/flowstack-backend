@@ -11,6 +11,7 @@ dj-database-url
 psycopg
 python-decouple
 whitenoise
+gunicorn
 
 
  
