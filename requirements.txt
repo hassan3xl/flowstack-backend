@@ -1,0 +1,16 @@
+python-dotenv
+django
+pillow
+djangorestframework
+djangorestframework-simplejwt
+dj-rest-auth
+django-allauth
+django-allauth[socialaccount]
+django-cors-headers
+dj-database-url
+psycopg
+python-decouple
+whitenoise
+
+
+ 
