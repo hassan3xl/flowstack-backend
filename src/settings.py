@@ -16,31 +16,29 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 # CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = True
 
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "vercel.app",
+    "flowstack-backend.onrender.com",
+    
 ]
 
-
-
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-
-]
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", 
+    "https://flowstack-backend.onrender.com",
+    "https://flowstack.vercel.app",
 
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
-
+    "https://flowstack-backend.onrender.com",
+    "https://flowstack.vercel.app",
 ]
 
 # Application definition
