@@ -5,6 +5,7 @@ from core.models import (
     Project,
     ProjectItem,
     SharedListAccess,
+    Comment,
 )
 from .serializers import (
     ProjectSerializer,
@@ -12,6 +13,7 @@ from .serializers import (
     SharedListAccessSerializer,
     ProjectSettingsSerializer,
     ProjectArchiveSerializer,
+    CommentSerializer,
 )
 from core.permissions import HasProjectAccess, IsProjectOwner
 from rest_framework.response import Response
@@ -19,6 +21,8 @@ from core.models import CustomUser
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from django.db.models import Prefetch
+from django.utils import timezone
+from notifications.services import NotificationService
 
 
 class ProjectListCreateView(generics.ListCreateAPIView):
@@ -61,25 +65,31 @@ class ProjectSettingsView(generics.RetrieveUpdateDestroyAPIView):
         return Project.objects.filter(owner=self.request.user)
 
 
-class ProjectItemListCreateView(generics.ListCreateAPIView):
+class ProjectItemCreateView(generics.CreateAPIView):
     serializer_class = ProjectItemSerializer
     permission_classes = [permissions.IsAuthenticated, HasProjectAccess]
-
-    def get_queryset(self):
-        user = self.request.user
-        project_id = self.kwargs.get("project_id")
-        project = get_object_or_404(Project, id=project_id)
-
-        # Only return items if user is owner or shared
-        if not (project.owner == user or project.shared_access.filter(user=user).exists()):
-            return ProjectItem.objects.none()
-
-        return ProjectItem.objects.filter(project=project)
     
     def perform_create(self, serializer):
         project_id = self.kwargs.get("project_id")
         project = get_object_or_404(Project, id=project_id)
-        serializer.save(project=project)
+        project_item = serializer.save(project=project, started_by=self.request.user)
+
+
+        title = f"New Task Added"
+        message = f"A new task '{project_item.title}' has been added to the project '{project.title}'."
+
+        # Get all users related to the project
+        related_users = [project.owner]
+        shared_users = [access.user for access in project.shared_access.all()]
+        all_recipients = list(set(related_users + shared_users))
+ 
+        # Send notifications to everyone
+        NotificationService.send_bulk_notification(
+            users=all_recipients,
+            title=title,
+            message=message,
+            channels=["in_app", "email"]
+        )
 
 
 class StartTaskView(APIView):
@@ -108,8 +118,18 @@ class StartTaskView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-from rest_framework import status
-from django.utils import timezone
+
+class CommentListCreateView(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_url_kwarg = "item_id"
+
+    def perform_create(self, serializer):
+        project_item = ProjectItem.objects.get(id=self.kwargs["item_id"])
+        serializer.save(author=self.request.user, project_item=project_item)
+
+
+
 
 class CompleteTaskView(APIView):
     permission_classes = [permissions.IsAuthenticated, HasProjectAccess]
@@ -134,19 +154,6 @@ class CompleteTaskView(APIView):
 
         serializer = ProjectItemSerializer(task)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class ProjectItemDetailView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = ProjectItemSerializer
-    permission_classes = [permissions.IsAuthenticated, HasProjectAccess]
-    lookup_url_kwarg = "item_id"
-
-    def get_queryset(self):
-        user = self.request.user
-        return ProjectItem.objects.filter(
-            Q(project__owner=user) | Q(project__shared_access__user=user)
-        ).distinct()
-
 
 class ProjectInviteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -196,10 +203,7 @@ class ProjectInviteView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-from rest_framework import status, permissions
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
+
 
 class ProjectRemoveUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -230,7 +234,6 @@ class ProjectRemoveUserView(APIView):
             }, status=status.HTTP_200_OK)
         else:
             return Response({"error": "User is not a collaborator of this project."}, status=status.HTTP_404_NOT_FOUND)
-
 
 
 class SharedListListCreateView(generics.ListCreateAPIView):

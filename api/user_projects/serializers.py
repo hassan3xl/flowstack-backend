@@ -1,10 +1,25 @@
 # serializers.py
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from core.models import Project, ProjectItem, SharedListAccess
+from ..users.serializers import CustomUserSerializer
+from core.models import Project, ProjectItem, SharedListAccess, Comment
 from django.utils import timezone
 import uuid
 from core.models import UserProfile, CustomUser
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = CustomUserSerializer(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "author",
+            "content",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ('id', 'author', 'created_at')
 
 
 class SharedListAccessSerializer(serializers.ModelSerializer):
@@ -35,38 +50,26 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return obj.user.email if obj.user else None
 
 
-class CustomUserSerializer(serializers.ModelSerializer):
-    fullname = serializers.SerializerMethodField()
-    avatar = serializers.SerializerMethodField()
 
-    class Meta:
-        model = CustomUser
-        fields = ['id', 'email', 'fullname', 'avatar']
-
-    def get_fullname(self, obj):
-        # Get fullname from UserProfile if it exists
-        if hasattr(obj, 'profile'):
-            return f"{obj.profile.first_name} {obj.profile.last_name}".strip()
-        return obj.email  # fallback to email if no profile
-    
-    def get_avatar(self, obj):
-        if hasattr(obj, 'profile') and obj.profile.avatar:
-            return obj.profile.avatar.url
-        return None
 
 class ProjectItemSerializer(serializers.ModelSerializer):
     is_overdue = serializers.SerializerMethodField()
-    started_by = CustomUserSerializer(read_only=True)  # Use CustomUserSerializer here
+    started_by = CustomUserSerializer(read_only=True)
+    comments = CommentSerializer(many=True, read_only=True)  # Fix: add many=True and correct usage
     
     class Meta:
         model = ProjectItem
         fields = '__all__'
-        read_only_fields = ('id', 'created_at', 'updated_at', "project", 'completed_at', 'started_by')
+        read_only_fields = (
+            'id', 'created_at', 'updated_at', "project", 
+            'completed_at', 'started_by'
+        )
             
     def get_is_overdue(self, obj):
         if obj.due_date and obj.status != ProjectItem.StatusChoices.COMPLETED:
             return obj.due_date < timezone.now()
         return False
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     project_items = ProjectItemSerializer(many=True, read_only=True)
@@ -153,13 +156,4 @@ class ProjectArchiveSerializer(serializers.ModelSerializer):
 
 
 
-class SharedListAccessSerializer(serializers.ModelSerializer):
-    user_email = serializers.EmailField(source='user.email', read_only=True)
-    shared_by_email = serializers.EmailField(source='shared_by.email', read_only=True)
-    project_title = serializers.CharField(source='project.title', read_only=True)
-    
-    class Meta:
-        model = SharedListAccess
-        fields = '__all__'
-        read_only_fields = ('id', 'shared_by', 'created_at')
 

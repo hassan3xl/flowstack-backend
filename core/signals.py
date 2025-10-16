@@ -1,14 +1,27 @@
-# # signals.py
-# from django.db.models.signals import post_save
-# from django.dispatch import receiver
-# from .models import CustomUser, UserProfile
+from django.dispatch import receiver
+from django.db.models.signals import post_save
+from notifications.models import Notification, NotificationTemplate
+from core.models import CustomUser
 
-# @receiver(post_save, sender=CustomUser)
-# def create_user_profile(sender, instance, created, **kwargs):
-#     if created:
-#         UserProfile.objects.create(user=instance)
+@receiver(post_save, sender=CustomUser)
+def send_signup_notification(sender, instance, created, **kwargs):
+    if created:
+        # Get template
+        template = NotificationTemplate.objects.filter(name="signup_welcome", is_active=True).first()
+        if not template:
+            return
 
-# @receiver(post_save, sender=CustomUser)
-# def save_user_profile(sender, instance, **kwargs):
-#     if hasattr(instance, "profile"):
-#         instance.profile.save()
+        # Replace placeholders in message
+        message = template.message.replace("{{user.profile.first_name}}",  instance.email)
+        html_message = template.html_message.replace("{{user..profile.first_name}}",  instance.email)
+
+        # Create notification record
+        Notification.objects.create(
+            user=instance,
+            template=template,
+            title="Welcome to MyApp",
+            message=message,
+            html_message=html_message,
+            channels=template.channels,
+            category="signup",
+        )

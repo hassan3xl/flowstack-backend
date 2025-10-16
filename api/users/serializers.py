@@ -3,7 +3,6 @@ from rest_framework import serializers
 from core.models import CustomUser, UserProfile
 from django.utils import timezone
 import uuid
-from api.user_projects.serializers import ProjectSerializer
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,6 +11,25 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'email',  
                  'created_at', 'updated_at')
         read_only_fields = ('id', 'email',  'created_at', 'updated_at')
+
+class CustomUserSerializer(serializers.ModelSerializer):
+    fullname = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'email', 'fullname', 'avatar']
+
+    def get_fullname(self, obj):
+        # Get fullname from UserProfile if it exists
+        if hasattr(obj, 'profile'):
+            return f"{obj.profile.first_name} {obj.profile.last_name}".strip()
+        return obj.email  # fallback to email if no profile
+    
+    def get_avatar(self, obj):
+        if hasattr(obj, 'profile') and obj.profile.avatar:
+            return obj.profile.avatar.url
+        return None
 
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -31,5 +49,7 @@ class UserPublicSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "projects"]
 
     def get_projects(self, obj):
+        from api.user_projects.serializers import ProjectSerializer
+
         projects = obj.projects.filter(visibility="public", is_archived=False)
         return ProjectSerializer(projects, many=True).data

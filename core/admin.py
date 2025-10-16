@@ -7,6 +7,7 @@ from .models import (
     ProjectItem,
     SharedListAccess,
     UserSettings,
+    Comment,
 )
 
 class CustomUserAdmin(BaseUserAdmin):
@@ -69,3 +70,4 @@ admin.site.register(Project, ProjectAdmin)
 admin.site.register(ProjectItem, ProjectItemAdmin)
 admin.site.register(SharedListAccess, SharedListAccessAdmin)
 admin.site.register(UserSettings, UserSettingsAdmin)
+admin.site.register(Comment)

@@ -165,6 +165,27 @@ class ProjectItem(models.Model):
         super().save(*args, **kwargs)
 
 
+class Comment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project_item = models.ForeignKey(
+        ProjectItem, related_name="comments", on_delete=models.CASCADE
+    )
+    author = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="comments"
+    )
+    content = models.TextField()
+   
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comment by {self.author} on {self.project_item.title}"
+
+
+
 class SharedListAccess(models.Model):
     class AccessLevelChoices(models.TextChoices):
         READ = "read", "Can read"

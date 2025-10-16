@@ -15,7 +15,7 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
 DEBUG = os.getenv("DEBUG", "False") == "True"
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 ALLOWED_HOSTS = [
@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     "core",
     "api",
     "router",
+    "ai",
+    "notifications",
 ]
 
 AUTH_USER_MODEL = "core.CustomUser"
@@ -94,7 +96,7 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=24),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),   
     "ROTATE_REFRESH_TOKENS": True,                   
     "BLACKLIST_AFTER_ROTATION": True,                
