@@ -7,6 +7,7 @@ from .models import (
     Project,
     ProjectItem,
     Comment,
+    ProjectCollaborator
 )
 
 
@@ -25,3 +26,4 @@ class ProjectItemAdmin(admin.ModelAdmin):
 admin.site.register(Project, ProjectAdmin)
 admin.site.register(ProjectItem, ProjectItemAdmin)
 admin.site.register(Comment)
+admin.site.register(ProjectCollaborator)

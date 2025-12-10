@@ -7,6 +7,19 @@ def generate_invite_code():
     # 12-character URL-safe, cryptographically secure
     return secrets.token_urlsafe(9)  # ~12 chars
 
+class ServerCategory(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name
+
+
     
 class Server(models.Model):
     SERVER_TYPES = (
@@ -20,6 +33,7 @@ class Server(models.Model):
     icon = models.ImageField(upload_to='server_icons/', null=True, blank=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_servers')
     server_type = models.CharField(max_length=10, choices=SERVER_TYPES, default='private')
+    category = models.ForeignKey(ServerCategory, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     member_count = models.IntegerField(default=1)

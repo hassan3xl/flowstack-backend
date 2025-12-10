@@ -13,18 +13,12 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'email',  'created_at', 'updated_at')
 
 class CustomUserSerializer(serializers.ModelSerializer):
-    fullname = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
+    username = serializers.CharField(source='profile.username', read_only=True)
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'email', 'fullname', 'avatar']
-
-    def get_fullname(self, obj):
-        # Get fullname from UserProfile if it exists
-        if hasattr(obj, 'profile'):
-            return f"{obj.profile.first_name} {obj.profile.last_name}".strip()
-        return obj.email  # fallback to email if no profile
+        fields = ['id', 'email', 'username', 'avatar']
     
     def get_avatar(self, obj):
         if hasattr(obj, 'profile') and obj.profile.avatar:
