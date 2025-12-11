@@ -15,31 +15,6 @@ load_dotenv()
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
 DEBUG = os.getenv("DEBUG", "False") == "True"
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "vercel.app",
-    "flowstack-backend.onrender.com",
-    "https://flowstack-gamma.vercel.app"
-    
-]
-
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000", 
-    "https://flowstack-backend.onrender.com",
-    "https://flowstack-gamma.vercel.app",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "https://flowstack-backend.onrender.com",
-    "https://flowstack-gamma.vercel.app",
-]
 
 # Application definition
 
@@ -71,6 +46,29 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = "user_manager.CustomUser"
+
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://flowstack-gamma.vercel.app",
+]
+
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "vercel.app",
+    "flowstack-backend.onrender.com",
+    "flowstack-gamma.vercel.app",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://flowstack-backend.onrender.com",
+    "https://flowstack-gamma.vercel.app",
+]
 
 
 MIDDLEWARE = [

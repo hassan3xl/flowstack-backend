@@ -12,6 +12,7 @@ psycopg
 python-decouple
 whitenoise
 gunicorn
+rest_framework_nested
 
 
  
