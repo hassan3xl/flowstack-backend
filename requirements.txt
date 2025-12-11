@@ -12,7 +12,4 @@ psycopg
 python-decouple
 whitenoise
 gunicorn
-rest-framework-nested
-
-
- 
+drf-nested-routers

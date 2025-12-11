@@ -1,4 +1,5 @@
 from rest_framework_nested import routers
+
 from django.urls import path, include
 
 from .views import (
@@ -12,7 +13,6 @@ from .views import (
 )
 
 router = routers.SimpleRouter()
-# server/<server_id>/projects/
 router.register(r'servers/(?P<server_id>[^/.]+)/projects', ProjectViewSet, basename='server-projects')
 
 projects_router = routers.NestedSimpleRouter(
