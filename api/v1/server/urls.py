@@ -1,7 +1,9 @@
 from django.urls import path, include
 from .views import (
     ServerViewSet, 
-    CreateServerInvitationView, ReceivedInvitationListView, AcceptInvitationView, RejectInvitationView
+    CreateServerInvitationView, 
+    ReceivedInvitationListView, AcceptInvitationView, RejectInvitationView,
+    ServerStatsAndRecentActivitiesView,
 )
 
 from rest_framework.routers import DefaultRouter
@@ -11,6 +13,15 @@ router.register(r'servers', ServerViewSet, basename='server')
 
 urlpatterns = [
     path('', include(router.urls)),
+
+    # Server stats and recent activities
+    path(
+        "servers/<uuid:server_id>/stats/",
+        ServerStatsAndRecentActivitiesView.as_view(),
+        name="server-stats"
+    ),
+
+    # Create invitation
     path(
         "servers/<uuid:server_id>/invite/",
         CreateServerInvitationView.as_view(),

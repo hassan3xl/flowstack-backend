@@ -22,7 +22,9 @@ from ..utils.permissions.server_permissions import (
     IsServerAdminOrMod
 
 )
-from datetime import timezone
+# from datetime import timezone
+from django.utils import timezone
+
 from notification_manager.services import NotificationService
 
 
@@ -281,7 +283,7 @@ class CompleteTaskView(APIView):
 
         # Check if task is free to take
         if task.status != ProjectItem.StatusChoices.IN_PROGRESS or task.started_by != user:
-            return Response({"detail": "Task is not available to complete."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "You are not the user that started this task."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Assign task to user and change status
         task.status = ProjectItem.StatusChoices.COMPLETED

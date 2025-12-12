@@ -41,9 +41,9 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class ProjectItemSerializer(serializers.ModelSerializer):
-    is_overdue = serializers.SerializerMethodField()
     started_by = serializers.CharField(source='started_by.profile.username', read_only=True)
     assigned_to = serializers.CharField(source='assigned_to.profile.username', read_only=True)
+    due_date = serializers.DateField(required=False, allow_null=True)
     comments = CommentSerializer(many=True, read_only=True) 
     
     class Meta:
@@ -54,10 +54,7 @@ class ProjectItemSerializer(serializers.ModelSerializer):
             'completed_at', 'started_by'
         )
             
-    def get_is_overdue(self, obj):
-        if obj.due_date and obj.status != ProjectItem.StatusChoices.COMPLETED:
-            return obj.due_date < timezone.now()
-        return False
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     project_items = ProjectItemSerializer(many=True, read_only=True)

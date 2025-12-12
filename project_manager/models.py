@@ -82,7 +82,7 @@ class ProjectItem(models.Model):
         blank=True,
         related_name="started_tasks"
     )
-    due_date = models.DateTimeField(blank=True, null=True)
+    due_date = models.DateField(blank=True, null=True)
 
     completed_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

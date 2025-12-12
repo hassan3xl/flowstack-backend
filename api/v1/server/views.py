@@ -179,3 +179,25 @@ class RejectInvitationView(APIView):
         )
 
 
+class ServerStatsAndRecentActivitiesView(APIView):
+    def get(self, request, server_id):
+        server = get_object_or_404(Server, id=server_id)
+
+        stats = {
+            "member_count": server.member_count,
+            "project_Count": server.projects.count(),
+
+        }
+
+        recent_activities = [
+            {
+                "user": activity.user.username,
+                "action": activity.action,
+                "timestamp": activity.timestamp
+            }
+        ]
+
+        return Response({
+            "stats": stats,
+            # "recent_activities": recent_activities
+        })
