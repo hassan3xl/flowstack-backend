@@ -1,13 +1,13 @@
 # serializers.py
 from rest_framework import serializers
-from ..users.serializers import CustomUserSerializer
+from ..account.serializers import UserSerializer
 from project_manager.models import Project, ProjectItem, Comment, ProjectCollaborator
 from django.utils import timezone
 from rest_framework.validators import UniqueTogetherValidator
 
 
 class CollaboratorSerializer(serializers.ModelSerializer):
-    user = CustomUserSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
     user_id = serializers.UUIDField(write_only=True)
 
     class Meta:
@@ -26,7 +26,7 @@ class CollaboratorSerializer(serializers.ModelSerializer):
         }
 
 class CommentSerializer(serializers.ModelSerializer):
-    author = CustomUserSerializer(read_only=True)
+    author = UserSerializer(read_only=True)
 
     class Meta:
         model = Comment

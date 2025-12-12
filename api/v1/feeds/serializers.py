@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from ..users.serializers import CustomUserSerializer
+from ..account.serializers import UserSerializer
 from django.utils import timezone
 import uuid
 from user_manager.models import UserProfile, CustomUser

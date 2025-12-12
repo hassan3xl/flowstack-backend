@@ -8,6 +8,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from decouple import config
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -19,6 +23,10 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 # Application definition
 
 INSTALLED_APPS = [
+    # static file
+    'cloudinary',
+    'cloudinary_storage',
+
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -32,8 +40,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "corsheaders",
-
-
+    
     # local apps
     "router",
     "server_manager",
@@ -44,6 +51,7 @@ INSTALLED_APPS = [
     "ai_manager",
 
 ]
+# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 AUTH_USER_MODEL = "user_manager.CustomUser"
 
@@ -70,6 +78,18 @@ CSRF_TRUSTED_ORIGINS = [
     "https://flowstack-gamma.vercel.app",
 ]
 
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET')
+}
+cloudinary.config(
+    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+    api_key=CLOUDINARY_STORAGE['API_KEY'],
+    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+    secure=True
+)
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -147,6 +167,17 @@ DATABASES = {
     "default": dj_database_url.config(default=os.getenv("NEON_DB"))
 }
 
+STORAGES = {
+    # Media: Goes to Cloudinary
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    
+    # Static: Stays local (or use WhiteNoise in production)
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -183,8 +214,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / 'media'
+# MEDIA_URL = "media/"
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

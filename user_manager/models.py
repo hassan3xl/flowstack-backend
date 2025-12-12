@@ -8,6 +8,7 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
+from cloudinary.models import CloudinaryField
 
 
 class CustomUserManager(BaseUserManager):
@@ -77,15 +78,10 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.email}'s Profile"
 
-    def get_full_name(self):
-        return self.first_name + self.last_name
-
     # generate default username
     def generate_default_username(self):
         return f"{self.first_name.lower()}{self.last_name.lower()}"
-        if UserProfile.objects.filter(username=username).exists():
-            return f"{username}{UserProfile.objects.filter(username=username).count()}"
-        return username
+
 
 
 class UserSettings(models.Model):

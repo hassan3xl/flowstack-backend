@@ -13,3 +13,5 @@ python-decouple
 whitenoise
 gunicorn
 drf-nested-routers
+cloudinary 
+django-cloudinary-storage 
