@@ -61,13 +61,13 @@ class ProfileSerializer(serializers.ModelSerializer):
         )
 
 class UserSerializer(serializers.ModelSerializer):
-    # profile = ProfileSerializer(read_only=True)
     fullname = serializers.SerializerMethodField()
     username = serializers.CharField(source='profile.username', read_only=True)
+    avatar = serializers.CharField(source='profile.avatar', read_only=True)
 
     class Meta:
         model = User
-        fields = ("id", "email", "username", "fullname") 
+        fields = ("id", "email", "username", "fullname", "avatar") 
 
     def get_fullname(self, obj):
         profile = getattr(obj, "profile", None)

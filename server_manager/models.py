@@ -52,7 +52,7 @@ class ServerMember(models.Model):
         ('moderator', 'Moderator'),
         ('member', 'Member'),
     )
-    
+    # id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     server = models.ForeignKey(Server, on_delete=models.CASCADE, related_name='members')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='server_memberships')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')

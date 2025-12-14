@@ -2,7 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from user_manager.models import CustomUser, UserProfile
-from .serializers import AccountProfileSerializer, AccountUserSerializer
+from .serializers import AccountProfileSerializer, AccountUserSerializer, AccountProfileAvatarSerializer
 from django.utils import timezone
 
 
@@ -17,18 +17,10 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 class UserProfileAvatarView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-    serializer_class = AccountProfileSerializer
+    serializer_class = AccountProfileAvatarSerializer
 
     def get_object(self):
         return self.request.user.profile
-
-    def patch(self, request, *args, **kwargs):
-        """
-        Allows PATCH for avatar only:
-        { "avatar": <file> }
-        """
-        return super().patch(request, *args, **kwargs)
-
 
 class UserAccountView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]

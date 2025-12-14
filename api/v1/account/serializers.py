@@ -40,3 +40,17 @@ class AccountProfileSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}".strip()
+
+class AccountProfileAvatarSerializer(serializers.ModelSerializer):
+    # Remove SerializerMethodField, use ImageField properly
+    avatar = serializers.ImageField(required=True)
+    
+    class Meta:
+        model = UserProfile
+        fields = ["avatar"]
+    
+    def update(self, instance, validated_data):
+        # Handle avatar update
+        instance.avatar = validated_data.get('avatar', instance.avatar)
+        instance.save()
+        return instance

@@ -127,6 +127,18 @@ class ReceivedInvitationSerializer(serializers.ModelSerializer):
             'role',
         ]
 
+class UploadServerLogoSerializer(serializers.Serializer):
+    icon = serializers.ImageField(required=True)
+
+    class Meta:
+        fields = ['icon']
+        model = Server
+
+    def update(self, instance, validated_data):
+        instance.icon = validated_data.get('icon', instance.icon)
+        instance.save()
+        return instance
+
 # class ServerInvitationSerializer(serializers.ModelSerializer):
 #     server = ServerSerializer(read_only=True)
 #     server_id = serializers.UUIDField(write_only=True)

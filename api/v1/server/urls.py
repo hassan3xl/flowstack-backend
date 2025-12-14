@@ -3,7 +3,9 @@ from .views import (
     ServerViewSet, 
     CreateServerInvitationView, 
     ReceivedInvitationListView, AcceptInvitationView, RejectInvitationView,
-    ServerStatsAndRecentActivitiesView,
+    ServerStatsAndRecentActivitiesView,ServerImageUploadView,
+    ServerMemberRoleView,
+
 )
 
 from rest_framework.routers import DefaultRouter
@@ -19,6 +21,19 @@ urlpatterns = [
         "servers/<uuid:server_id>/stats/",
         ServerStatsAndRecentActivitiesView.as_view(),
         name="server-stats"
+    ),
+    
+    path(
+        'servers/<uuid:server_id>/<uuid:user_id>/role/', 
+        ServerMemberRoleView.as_view(), 
+        name='update-member-role'
+        ),
+
+    # Upload icon
+    path(
+        "servers/<uuid:server_id>/icon/",
+        ServerImageUploadView.as_view(),
+        name="reject-invite"
     ),
 
     # Create invitation
@@ -49,3 +64,4 @@ urlpatterns = [
         name="reject-invite"
     ),
 ]
+    

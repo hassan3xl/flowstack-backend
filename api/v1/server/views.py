@@ -12,9 +12,12 @@ from .serializers import (
     CreateServerInvitationSerializer,
     ServerSerializer,
     ReceivedInvitationSerializer,
-    ServerMemberSerializer
+    ServerMemberSerializer,
+    UploadServerLogoSerializer,
 )
 from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 class ServerViewSet(viewsets.ModelViewSet):
     queryset = Server.objects.all()
@@ -178,6 +181,55 @@ class RejectInvitationView(APIView):
             status=status.HTTP_200_OK
         )
 
+
+class ServerImageUploadView(generics.UpdateAPIView):
+    serializer_class = UploadServerLogoSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        server_id = self.kwargs["server_id"]
+        return get_object_or_404(Server, id=server_id)
+    
+class ServerMemberRoleView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, server_id, user_id):
+        # Get server
+        server = get_object_or_404(Server, id=server_id)
+
+        # Check if the requesting user is an admin in this server
+        try:
+            requester_member = ServerMember.objects.get(server=server, user=request.user)
+        except ServerMember.DoesNotExist:
+            return Response({"error": "You are not a member of this server."}, status=status.HTTP_403_FORBIDDEN)
+
+        if requester_member.role != "owner" and requester_member.role != "admin":
+            return Response({"error": "Only admins can update roles."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get the member instance to update
+        member = get_object_or_404(ServerMember, server=server, user__id=user_id)
+
+        # Prevent admin from changing their own role (optional)
+        if member.user == request.user:
+            return Response({"error": "Admins cannot change their own role."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the new role
+        role = request.data.get("role")
+        if not role:
+            return Response({"error": "Role is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update role
+        member.role = role
+        member.save()
+
+        return Response(
+            {"message": "Role updated successfully", "user": member.user.id, "role": member.role},
+            status=status.HTTP_200_OK
+        )
+    
+    
 
 class ServerStatsAndRecentActivitiesView(APIView):
     def get(self, request, server_id):
