@@ -1,14 +1,7 @@
 from rest_framework import serializers
 from server_manager.models import Server, ServerMember, ServerInvitation
 from user_manager.models import CustomUser as User
-
-
-class UserSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='profile.username', read_only=True)
-
-    class Meta:
-        model = User
-        fields = ['id', 'email', 'username']
+from ..account.serializers import UserSerializer
 
 
 class ServerMemberSerializer(serializers.ModelSerializer):

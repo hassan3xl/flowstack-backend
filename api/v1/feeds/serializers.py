@@ -1,9 +1,11 @@
 # feed_manager/serializers/comment.py
 from rest_framework import serializers
 from feed_manager.models import FeedComment, FeedLike, Feed
+from ..account.serializers import UserSerializer
+
 
 class FeedCommentReadSerializer(serializers.ModelSerializer):
-    author = serializers.CharField(source="author.profile.username", read_only=True)
+    author = UserSerializer(read_only=True)
 
     class Meta:
         model = FeedComment
@@ -23,7 +25,7 @@ class FeedCommentWriteSerializer(serializers.ModelSerializer):
 
 
 class FeedLikeSerializer(serializers.ModelSerializer):
-    author = serializers.CharField(source="author.profile.username", read_only=True)
+    author = UserSerializer(read_only=True)
 
     class Meta:
         model = FeedLike
@@ -32,7 +34,7 @@ class FeedLikeSerializer(serializers.ModelSerializer):
 
 
 class FeedReadSerializer(serializers.ModelSerializer):
-    author = serializers.CharField(source="author.profile.username", read_only=True)
+    author = UserSerializer(read_only=True)
     server = serializers.CharField(source="server.name", read_only=True)
     server_id = serializers.UUIDField(source="server.id", read_only=True)
 
