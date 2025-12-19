@@ -21,6 +21,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # Application definition
+import sys
+sys.path.append(str(BASE_DIR / 'apps'))
 
 INSTALLED_APPS = [
     # static file
@@ -42,18 +44,16 @@ INSTALLED_APPS = [
     "corsheaders",
     
     # local apps
-    "router",
-    "server_manager",
-    "user_manager",
-    "feed_manager",
-    "project_manager",
-    "notification_manager",
-    "ai_manager",
+    "users",
+    "workspace",
+    "community",
+    'notifications',
+    'router',
 
 ]
 # DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-AUTH_USER_MODEL = "user_manager.CustomUser"
+AUTH_USER_MODEL = "users.User"
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
