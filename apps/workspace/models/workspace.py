@@ -93,10 +93,7 @@ class WorkspaceInvitation(models.Model):
         related_name='workspace_invites_received'
     )
 
-    invite_code = models.CharField(max_length=32, unique=True, db_index=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='member')
-    max_uses = models.IntegerField(default=1)
-    uses = models.IntegerField(default=0)
     expires_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

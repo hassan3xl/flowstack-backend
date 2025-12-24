@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, generics, permissions
+from rest_framework import viewsets, status, generics, permissions, serializers
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,6 +7,9 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import NotFound
+from workspace.permissions.workspace_permissions import (
+    IsWorkspaceMember
+)
 
 from workspace.models import (
     Workspace,
@@ -21,8 +24,11 @@ from workspace.api import (
     WorkspaceMemberSerializer,
     CreateWorkspaceInvitationSerializer,
     UploadWorkspaceLogoSerializer,
-    WorkspaceDashboardSerializer
+    WorkspaceDashboardSerializer,
+    WorkspaceInvitationSerializer,
 )
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 from django.utils import timezone
 
@@ -55,7 +61,7 @@ class WorkspaceDashboardView(APIView):
         return Response(serializer.data)
     
 class WorkspaceViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
     queryset = Workspace.objects.all()
 
     def get_serializer_class(self):
@@ -94,35 +100,156 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
         serializer = WorkspaceMemberSerializer(members, many=True)
         return Response(serializer.data)
 
-
 class CreateWorkspaceInvitationView(generics.CreateAPIView):
     serializer_class = CreateWorkspaceInvitationSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_context(self):
+        """Pass request and workspace to serializer for validation"""
+        context = super().get_serializer_context()
+        workspace_id = self.kwargs["workspace_id"]
+        workspace = get_object_or_404(Workspace, id=workspace_id)
+        context['workspace'] = workspace
+        return context
+
     def perform_create(self, serializer):
         workspace_id = self.kwargs["workspace_id"]
         workspace = get_object_or_404(Workspace, id=workspace_id)
-
-        # Only owner/admin can invite
+        
+        # Check permissions: Is the requester an Admin or Owner?
         try:
             member = WorkspaceMember.objects.get(
                 workspace=workspace,
                 user=self.request.user
             )
+            if member.role not in ["owner", "admin"]:
+                # We raise a PermissionDenied or return Response (GenericAPIView prefers exceptions usually)
+                raise serializers.ValidationError({"detail": "Only admins can invite users."})
+        except WorkspaceMember.DoesNotExist:
+             raise serializers.ValidationError({"detail": "You are not a member of this workspace."})
+
+        # Save with the missing fields that aren't in the request body
+        serializer.save(
+            workspace=workspace,
+            invited_by=self.request.user
+        )
+
+
+
+
+class RemoveWorkspaceMemberView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        workspace_id = self.kwargs.get('workspace_id')
+        member_id = self.kwargs.get('member_id') # ID of the user to be removed
+
+        workspace = get_object_or_404(Workspace, id=workspace_id)
+        
+        # 1. Get the member record of the requester (You)
+        try:
+            requester_membership = WorkspaceMember.objects.get(
+                workspace=workspace, 
+                user=request.user
+            )
         except WorkspaceMember.DoesNotExist:
             return Response(
-                {"error": "You are not a member of this workspace."},
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": "You are not a member of this workspace."}, 
+                status=status.HTTP_403_FORBIDDEN
             )
 
-        if member.role not in ["owner", "admin"]:
+        # 2. Check if requester has permission (Admin/Owner only)
+        if requester_membership.role not in ['owner', 'admin']:
             return Response(
-                {"error": "Only admins can invite users."},
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": "Only admins and owners can remove members."}, 
+                status=status.HTTP_403_FORBIDDEN
             )
 
-        serializer.save(workspace=workspace)
+        # 3. Get the member to be kicked (Target)
+        target_user = get_object_or_404(User, id=member_id)
+        target_membership = get_object_or_404(
+            WorkspaceMember, 
+            workspace=workspace, 
+            user=target_user
+        )
 
+        # 4. Safety Checks
+        
+        # Prevent kicking yourself (Use 'Leave' endpoint for that)
+        if request.user.id == target_user.id:
+             return Response(
+                {"error": "You cannot kick yourself. Please use the leave workspace option."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Prevent kicking the Owner
+        if target_membership.role == 'owner':
+            return Response(
+                {"error": "The workspace owner cannot be removed."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Prevent Admins from kicking other Admins (Optional, usually reserved for Owner)
+        # If you want Admins to kick other Admins, remove this block.
+        if requester_membership.role == 'admin' and target_membership.role == 'admin':
+             return Response(
+                {"error": "Admins cannot remove other admins. Contact the Owner."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 5. Perform the Kick
+        target_membership.delete()
+
+        return Response(
+            {"message": f"User {target_user.email} has been removed from the workspace."},
+            status=status.HTTP_200_OK
+        )
+    
+class LeaveWorkspaceView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, *args, **kwargs):
+        workspace_id = self.kwargs.get('workspace_id')
+        workspace = get_object_or_404(Workspace, id=workspace_id)
+        
+        # 1. Find the membership for the current user
+        try:
+            membership = WorkspaceMember.objects.get(
+                workspace=workspace,
+                user=request.user
+            )
+        except WorkspaceMember.DoesNotExist:
+            return Response(
+                {"error": "You are not a member of this workspace."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 2. Critical Check: Owners cannot leave
+        if membership.role == 'owner':
+            return Response(
+                {
+                    "error": "Owners cannot leave their workspace. You must transfer ownership to another member or delete the workspace."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Process the leave action
+        membership.delete()
+
+        return Response(
+            {"message": f"You have successfully left {workspace.name}."},
+            status=status.HTTP_200_OK
+        )
+
+class GetWorkspaceInvitationsView(generics.ListAPIView):
+    serializer_class = WorkspaceInvitationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return WorkspaceInvitation.objects.filter(
+            invited_user=self.request.user
+        )
+        
 
 class AcceptWorkspaceInvitationView(APIView):
     permission_classes = [IsAuthenticated]

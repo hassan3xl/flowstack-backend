@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 from django.db import models
-from workspace.utils.permissions.project_permissions import HasProjectAccess
+from workspace.permissions.project_permissions import HasProjectAccess
 from workspace.models import Project, Task, ProjectMember, Workspace, WorkspaceMember
 from users.models import User
 

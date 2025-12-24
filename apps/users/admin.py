@@ -7,7 +7,6 @@ from .models import (
     UserSettings,
 )
 
-
 class UserAdmin(BaseUserAdmin):
     model = User
     list_display = ("email", "is_staff", "is_active", "created_at")
@@ -18,7 +17,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         ("Permissions", {"fields": ("is_staff", "is_active", "is_superuser", "groups", "user_permissions")}),
-        ("Important dates", {"fields": ("last_login", "created_at", "updated_at")}),
+        ("Important dates", {"fields": ("last_login", "created_at",)}),
     )
     add_fieldsets = (
         (

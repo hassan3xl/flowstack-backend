@@ -9,6 +9,8 @@ from ..views.workspace_views import (
     WorkspaceImageUploadView,
     WorkspaceMemberRoleView,
     WorkspaceDashboardView,
+    GetWorkspaceInvitationsView,
+    RemoveWorkspaceMemberView,
 )
 
 router = DefaultRouter()
@@ -22,6 +24,12 @@ urlpatterns = [
         WorkspaceDashboardView.as_view(),
         name="workspace-dashboard"
     ),
+    path(
+        "workspaces/invitations/",
+        GetWorkspaceInvitationsView.as_view(),
+        name="workspace-invitations"
+    ),
+
 
 ]
 
@@ -40,13 +48,13 @@ urlpatterns += [
     ),
 
     path(
-        "workspaces/<uuid:workspace_id>/<uuid:user_id>/role/",
+        "workspaces/<uuid:workspace_id>/<uuid:user_id>/member-role/",
         WorkspaceMemberRoleView.as_view(),
         name="update-workspace-member-role",
     ),
 
     path(
-        "workspaces/<uuid:workspace_id>/icon/",
+        "workspaces/<uuid:workspace_id>/role/",
         WorkspaceImageUploadView.as_view(),
         name="upload-workspace-icon",
     ),
@@ -56,6 +64,9 @@ urlpatterns += [
         CreateWorkspaceInvitationView.as_view(),
         name="create-workspace-invite",
     ),
+    path('workspaces/<uuid:workspace_id>/members/<uuid:member_id>/remove/', 
+     RemoveWorkspaceMemberView.as_view(), 
+     name='remove-workspace-member'),
 ]
 
 # urlpatterns += [

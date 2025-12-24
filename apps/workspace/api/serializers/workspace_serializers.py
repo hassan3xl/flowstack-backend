@@ -2,6 +2,22 @@ from rest_framework import serializers
 from users.models import User
 from workspace.models import Workspace, WorkspaceMember, WorkspaceInvitation, WorkspaceChannel
 from users.api import UserSerializer
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import timedelta
+
+
+User = get_user_model()
+
+
+
+class UploadWorkspaceLogoSerializer(serializers.Serializer):
+    icon = serializers.ImageField(required=True)
+
+    def update(self, instance, validated_data):
+        instance.icon = validated_data['icon']
+        instance.save()
+        return instance
 
 
 class WorkspaceDashboardSerializer(serializers.Serializer):
@@ -22,7 +38,7 @@ class WorkspaceMemberSerializer(serializers.ModelSerializer):
 class WorkspaceSerializer(serializers.ModelSerializer):
     owner = UserSerializer(read_only=True)
     members = WorkspaceMemberSerializer(many=True, read_only=True)
-    # logo = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
     is_owner = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
 
@@ -59,6 +75,11 @@ class WorkspaceSerializer(serializers.ModelSerializer):
             return membership.role if membership else None
         return None
 
+    def get_logo(self, obj):
+        if obj.logo:
+            return obj.logo.url
+        return None
+
 
 class CreateWorkspaceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -66,64 +87,80 @@ class CreateWorkspaceSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'visibility']
         read_only_fields = ['id']
 
-        
 
-
-class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(write_only=True)
+class WorkspaceInvitationSerializer(serializers.ModelSerializer):
+    invited_user = UserSerializer(read_only=True)
+    invited_by = UserSerializer(read_only=True)
+    workspace = WorkspaceSerializer(read_only=True)
 
     class Meta:
         model = WorkspaceInvitation
         fields = [
             'id',
             'workspace',
-            'email',
+            'invited_user',
+            'invited_by',
             'role',
-            'max_uses',
             'expires_at',
-            'invite_code',
         ]
-        read_only_fields = ['id', 'invite_code', 'workspace']
+        read_only_fields = ['id', 'workspace']
 
-    def validate_email(self, value):
-        if not User.objects.filter(email=value).exists():
-            raise serializers.ValidationError(
-                "No user with this email exists."
-            )
-        return value
+
+class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(write_only=True)  # Accept email as input
+
+    class Meta:
+        model = WorkspaceInvitation
+        fields = [
+            'id',
+            'email',         # Input field
+            'role',
+            'expires_at',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        workspace = self.context['workspace']
+        
+        # 1. Check if user exists
+        try:
+            invited_user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"email": "User with this email does not exist."})
+
+        # 2. Check if you are inviting yourself
+        if self.context['request'].user == invited_user:
+            raise serializers.ValidationError({"email": "You cannot invite yourself."})
+
+        # 3. Check if user is ALREADY a member
+        if WorkspaceMember.objects.filter(workspace=workspace, user=invited_user).exists():
+            raise serializers.ValidationError({"email": "User is already a member of this workspace."})
+
+        # 4. Check if invite ALREADY exists
+        # Since rejection deletes the invite, simply checking .exists() handles the "re-invite" logic.
+        if WorkspaceInvitation.objects.filter(workspace=workspace, invited_user=invited_user).exists():
+            raise serializers.ValidationError({"email": "This user already has a pending invitation."})
+
+        # Store the resolved user object in attrs to use in create()
+        attrs['invited_user'] = invited_user
+        return attrs
 
     def create(self, validated_data):
-        request = self.context['request']
+        # Remove fields that aren't directly on the model or were helper fields
         email = validated_data.pop('email')
-        workspace = self.context['workspace']
+        invited_user = validated_data.pop('invited_user')
+        
+        # LOGIC FOR DEADLINE:
+        # If admin didn't provide a date, system assigns 7 days automatically
+        if not validated_data.get('expires_at'):
+            validated_data['expires_at'] = timezone.now() + timedelta(days=7)
 
-        if request.user.email == email:
-            raise serializers.ValidationError(
-                "You cannot invite yourself."
-            )
-
-        invited_user = User.objects.get(email=email)
-
-        if WorkspaceInvitation.objects.filter(
-            workspace=workspace,
-            invited_user=invited_user,
-        ).exists():
-            raise serializers.ValidationError(
-                "This user already has an active invitation."
-            )
-
+        # Create the instance
+        # Note: 'workspace' and 'invited_by' are passed via serializer.save() in the view
         return WorkspaceInvitation.objects.create(
-            workspace=workspace,
-            invited_by=request.user,
             invited_user=invited_user,
             **validated_data
         )
 
-
-class UploadWorkspaceLogoSerializer(serializers.Serializer):
-    icon = serializers.ImageField(required=True)
-
-    def update(self, instance, validated_data):
-        instance.icon = validated_data['icon']
-        instance.save()
-        return instance

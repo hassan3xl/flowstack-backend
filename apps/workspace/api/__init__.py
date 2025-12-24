@@ -12,4 +12,5 @@ from .serializers.workspace_serializers import (
     CreateWorkspaceSerializer,
     CreateWorkspaceInvitationSerializer,
     UploadWorkspaceLogoSerializer,
+    WorkspaceInvitationSerializer,
 )

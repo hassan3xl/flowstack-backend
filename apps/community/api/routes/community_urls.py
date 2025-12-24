@@ -13,20 +13,12 @@ from ..views.community_views import (
     JoinCommunityByInviteView
 )
 
-app_name = 'community_manager'
-
 # Initialize Router for the ViewSet
 router = DefaultRouter()
 router.register(r'communities', CommunityViewSet, basename='community')
 
 urlpatterns = [
-    # --- Router URLs (CRUD for Communities) ---
-    # This automatically generates:
-    # GET /communities/ -> List & Create
-    # GET /communities/{id}/ -> Retrieve, Update, Delete
-    # GET /communities/public_communities/ -> Custom action
-    # GET /communities/{id}/members/ -> Custom action
-    path('', include(router.urls)),
+   
 
     # --- Categories ---
     path('communities/categories/', CommunityCategoryListView.as_view(), name='category-list'),
@@ -52,4 +44,15 @@ urlpatterns = [
     
     # 5. Public confirms "Join Server" button
     path('invites/join/', JoinCommunityByInviteView.as_view(), name='join-by-invite'),
+]
+
+# Include the router's URLs
+urlpatterns += [
+     # --- Router URLs (CRUD for Communities) ---
+    # This automatically generates:
+    # GET /communities/ -> List & Create
+    # GET /communities/{id}/ -> Retrieve, Update, Delete
+    # GET /communities/public_communities/ -> Custom action
+    # GET /communities/{id}/members/ -> Custom action
+    path('', include(router.urls)),
 ]

@@ -1,12 +1,9 @@
 # urls.py
 from django.urls import path, include
 from apps.users.api.routes import auth_urls
-from ..workspace.api.routes import workspace_urls
-from ..workspace.api.routes import project_urls
-from apps.community.api.routes import community_urls
-from apps.users.api.routes import auth_urls
-from apps.users.api.routes import user_urls
-from apps.users.api.routes import settings_urls
+from ..workspace.api.routes import workspace_urls, project_urls
+from apps.community.api.routes import community_urls, posts_urls
+from apps.users.api.routes import auth_urls, user_urls, settings_urls
 from apps.notifications.api.routes import urls as notifications_url
 
 urlpatterns = [
@@ -21,6 +18,9 @@ urlpatterns = [
     path('', include(project_urls)),
     
     # feeds url
+    path('posts/', include(posts_urls)),
+
+
     path('settings/', include(settings_urls)),
     path('notifications/', include(notifications_url)),
     path('user/', include(user_urls)),
