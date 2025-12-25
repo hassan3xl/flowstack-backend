@@ -15,6 +15,11 @@ class Project(models.Model):
         ("archived", "Archived"),
     )
 
+    VISIBILITY_CHOICES = (
+        ('public', 'Public (Visible to Workspace)'),
+        ('private', 'Private (Invite Only)'),
+    )
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     workspace = models.ForeignKey(
@@ -30,6 +35,7 @@ class Project(models.Model):
         choices=STATUS_CHOICES,
         default="planning",
     )
+    visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='private')
 
     created_by = models.ForeignKey(
         User,

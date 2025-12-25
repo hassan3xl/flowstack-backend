@@ -51,7 +51,6 @@ INSTALLED_APPS = [
     'router',
 
 ]
-# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 AUTH_USER_MODEL = "users.User"
 

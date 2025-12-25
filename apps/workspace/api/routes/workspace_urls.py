@@ -8,9 +8,11 @@ from ..views.workspace_views import (
     RejectWorkspaceInvitationView,
     WorkspaceImageUploadView,
     WorkspaceMemberRoleView,
-    WorkspaceDashboardView,
     GetWorkspaceInvitationsView,
     RemoveWorkspaceMemberView,
+)
+from ..views.dashboard_views import (
+    WorkspaceDashboardView
 )
 
 router = DefaultRouter()

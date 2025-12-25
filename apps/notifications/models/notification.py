@@ -1,92 +1,54 @@
-# models.py
 from django.db import models
-from django.utils import timezone
-from django.core.serializers.json import DjangoJSONEncoder
-
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from users.models import User
-
-
-
-class NotificationChannel(models.TextChoices):
-    IN_APP = 'in_app', 'In App'
-    EMAIL = 'email', 'Email'
-    PUSH = 'push', 'Push Notification'
-    SMS = 'sms', 'SMS'
-
-class NotificationPriority(models.TextChoices):
-    LOW = 'low', 'Low'
-    MEDIUM = 'medium', 'Medium'
-    HIGH = 'high', 'High'
-    URGENT = 'urgent', 'Urgent'
-
-class NotificationTemplate(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    subject = models.CharField(max_length=200, blank=True, null=True)
-    message = models.TextField()
-    html_message = models.TextField(blank=True, null=True)
-    channels = models.CharField(max_length=50, default=NotificationChannel.IN_APP)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
+import uuid
 
 class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    template = models.ForeignKey(NotificationTemplate, on_delete=models.CASCADE, null=True, blank=True)
+    TYPE_CHOICES = (
+        ('info', 'Info'),
+        ('warning', 'Warning'),
+        ('success', 'Success'),
+        ('error', 'Error'),
+    )
+
+    CATEGORY_CHOICES = (
+        ('task_assigned', 'Task Assigned'),
+        ('task_completed', 'Task Completed'),
+        ('project_invite', 'Project Invitation'),
+        ('workspace_invite', 'Workspace Invitation'),
+        ('comment_mention', 'Comment Mention'),
+        ('system_alert', 'System Alert'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
-    # Core fields
-    title = models.CharField(max_length=200)
+    # Who gets it?
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    
+    # Who caused it? (Optional, e.g., System updates have no actor)
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='actions_caused')
+    
+    # What is this about? (The Magic of Generic Foreign Keys)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.UUIDField() 
+    target = GenericForeignKey('content_type', 'object_id')
+
+    title = models.CharField(max_length=255)
     message = models.TextField()
-    html_message = models.TextField(blank=True, null=True)
     
-    # Metadata
-    channels = models.CharField(max_length=50, default=NotificationChannel.IN_APP)
-    priority = models.CharField(max_length=10, choices=NotificationPriority.choices, default=NotificationPriority.MEDIUM)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='system_alert')
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='info')
     
-    # Status tracking
     is_read = models.BooleanField(default=False)
-    is_sent = models.BooleanField(default=False)
-    
-    # Additional data
-    action_url = models.URLField(blank=True, null=True)
-    category = models.CharField(max_length=50, blank=True, null=True)
-    
-    # Timestamps
+    read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', 'is_read', 'created_at']),
-            models.Index(fields=['user', 'category']),
-            models.Index(fields=['is_sent']),
+            models.Index(fields=['recipient', 'is_read']), # Optimize "Unread" queries
         ]
-    
-    def __str__(self):
-        return f"{self.user.email} - {self.title}"
-    
-    def mark_as_read(self):
-        self.is_read = True
-        self.save()
-    
-    def mark_as_sent(self):
-        self.is_sent = True
-        self.sent_at = timezone.now()
-        self.save()
 
-class UserNotificationPreference(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='notification_preferences')
-    email_enabled = models.BooleanField(default=True)
-    push_enabled = models.BooleanField(default=True)
-    sms_enabled = models.BooleanField(default=False)
-    in_app_enabled = models.BooleanField(default=True)
-    
-    # Category preferences
-    preferences = models.JSONField(default=dict, blank=True)
-    
-    updated_at = models.DateTimeField(auto_now=True)
-    
     def __str__(self):
-        return f"Preferences for {self.user.username}"
+        return f"Notification for {self.recipient.profile.username}: {self.title}"

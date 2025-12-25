@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from users.models import Profile
-
+from notifications.notification_services import NotificationService
 
 User = get_user_model()
 
@@ -36,6 +36,15 @@ class RegisterSerializer(serializers.ModelSerializer):
             user=user,
             first_name=first_name or "",
             last_name=last_name or ""
+        )
+
+        NotificationService.send_notification(
+            recipient=user,
+            actor=user,
+            title="Welcome to FlowStack!",
+            message="Your account has been created successfully, start managing projects now!",
+            target_obj=user,
+            category='system_alert',
         )
 
         return user

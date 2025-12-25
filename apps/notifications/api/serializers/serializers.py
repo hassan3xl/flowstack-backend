@@ -1,48 +1,27 @@
 # # serializers.py
 from rest_framework import serializers
-from notifications.models import Notification, NotificationTemplate, UserNotificationPreference, NotificationChannel, NotificationPriority
+from notifications.models import Notification
+from rest_framework import serializers
+from users.api.serializers.user_serializers import UserSerializer
 
-class NotificationTemplateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NotificationTemplate
-        fields = [
-            'id', 'name', 'subject', 'message', 'html_message', 
-            'channels', 'is_active', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at']
-
-class NotificationListSerializer(serializers.ModelSerializer):
-    # user = UserProfileSerializer(read_only=True)
-    template = NotificationTemplateSerializer(read_only=True)
+class NotificationSerializer(serializers.ModelSerializer):
+    actor = UserSerializer(read_only=True)
     
-    # Computed fields
-    channels_list = serializers.SerializerMethodField()
-    time_since = serializers.SerializerMethodField()
-    is_urgent = serializers.SerializerMethodField()
+    # Helper fields for frontend routing
+    target_type = serializers.CharField(source='content_type.model', read_only=True)
+    target_id = serializers.UUIDField(source='object_id', read_only=True)
     
     class Meta:
         model = Notification
         fields = [
-            'id', 'template', 'title', 'message', 'html_message',
-            'channels', 'channels_list', 'priority', 'is_read', 'is_sent',
-            'category', 'action_url', 'time_since', 'is_urgent',
-            'created_at'
+            'id', 
+            'actor', 
+            'title', 
+            'message', 
+            'category', 
+            'type', 
+            'is_read', 
+            'created_at',
+            'target_type', # e.g., "task", "project", "comment"
+            'target_id',   # Use this ID to link to the page (e.g. /tasks/{id})
         ]
-        read_only_fields = ['created_at', ]
-    
-    def get_channels_list(self, obj):
-        """Convert comma-separated channels to list"""
-        return obj.channels.split(',') if obj.channels else []
-    
-    def get_time_since(self, obj):
-        """Human-readable time since creation"""
-        from django.utils import timezone
-        from django.utils.timesince import timesince
-        
-        if obj.created_at:
-            return timesince(obj.created_at)
-        return None
-    
-    def get_is_urgent(self, obj):
-        """Check if notification is urgent"""
-        return obj.priority == NotificationPriority.URGENT

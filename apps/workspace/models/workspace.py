@@ -115,4 +115,33 @@ class WorkspaceChannel(models.Model):
     is_private = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+# workspace/models.py
 
+class ActivityLog(models.Model):
+    ACTION_TYPES = (
+        ('create_project', 'Created Project'),
+        ('add_project_member', 'Added Project Member'),
+        ('create_task', 'Created Task'),
+        ('start_task', 'Started Task'),
+        ('complete_task', 'Completed Task'),
+        ('comment', 'Commented'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='activities')
+    actor = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
+    
+    # We store the target name/title as a string so if the object is deleted, 
+    # the log still makes sense.
+    target_id = models.UUIDField(null=True, blank=True) 
+    target_text = models.CharField(max_length=200) # e.g. "Fix Login Bug" or "API Project"
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.actor.username} - {self.action_type}"

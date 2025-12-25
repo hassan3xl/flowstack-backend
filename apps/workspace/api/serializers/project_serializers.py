@@ -71,7 +71,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     created_by = serializers.CharField(
         source="created_by.profile.username", read_only=True
     )
-    members = ProjectMemberSerializer(many=True, read_only=True, source="collaborators")
+    members = ProjectMemberSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
@@ -106,5 +106,5 @@ class ProjectSerializer(serializers.ModelSerializer):
 class ProjectWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["id", "title", "description"]
+        fields = ["id", "title", "description", "visibility"]
         read_only_fields = ("id", "created_at", "updated_at")

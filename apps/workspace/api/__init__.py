@@ -14,3 +14,10 @@ from .serializers.workspace_serializers import (
     UploadWorkspaceLogoSerializer,
     WorkspaceInvitationSerializer,
 )
+
+from .serializers.dashboard_serializers import (
+    DashboardProjectSerializer, 
+    DashboardTaskSerializer, 
+    ActivityLogSerializer,
+    DashboardMemberSerializer
+)

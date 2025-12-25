@@ -62,8 +62,8 @@ urlpatterns = [
 
     # Project members
     path(
-        "workspaces/<uuid:workspace_id>/projects/<uuid:project_id>/members/",
+        "workspaces/<uuid:workspace_id>/projects/<uuid:project_id>/collaborators/",
         ProjectMemberView.as_view(),
-        name="project-members"
+        name="project-collaborators"
     ),
 ]

@@ -1,6 +1,8 @@
 import uuid
 from django.db import models
 from .user import User
+from ..utils.generate_username import generate_username
+
 
 class Profile(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -9,7 +11,7 @@ class Profile(models.Model):
     )
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
-    username = models.CharField(max_length=30, unique=True, blank=True, null=True)
+    username = models.CharField(max_length=100, unique=True, blank=True, null=True, default=generate_username)
     bio = models.TextField(max_length=500, blank=True)
     avatar = models.ImageField(
         upload_to="avatars/", blank=True, null=True
@@ -26,6 +28,3 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.email}'s Profile"
 
-    # generate default username
-    def generate_default_username(self):
-        return f"{self.first_name.lower()}{self.last_name.lower()}"
