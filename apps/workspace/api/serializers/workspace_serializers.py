@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 
+from notifications.notification_services import NotificationService
 
 User = get_user_model()
 
@@ -156,6 +157,14 @@ class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
         # If admin didn't provide a date, system assigns 7 days automatically
         if not validated_data.get('expires_at'):
             validated_data['expires_at'] = timezone.now() + timedelta(days=7)
+
+        NotificationService.send_notification(
+            actor=self.context['request'].user,
+            recipient=invited_user,
+            title="Workspace Invitation",
+            message=f"You have been invited to join workspace '{self.context['workspace'].name}'.",
+            target_obj=self.context['workspace'],
+        )
 
         # Create the instance
         # Note: 'workspace' and 'invited_by' are passed via serializer.save() in the view

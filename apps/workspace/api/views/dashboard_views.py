@@ -12,9 +12,15 @@ from workspace.api import (
     ActivityLogSerializer,
     DashboardMemberSerializer
 )
+from workspace.permissions.permissions import (
+    IsWorkspaceMemberOrAdmin,
+)
 
 class WorkspaceDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin
+    ]
 
     def get(self, request, workspace_id):
         user = request.user
@@ -58,6 +64,7 @@ class WorkspaceDashboardView(APIView):
             "workspace_description": workspace.description,
             "total_members": WorkspaceMember.objects.filter(workspace=workspace).count(),
             "total_projects": Project.objects.filter(workspace=workspace).count(),
+            "total_tasks": Task.objects.filter(project__workspace=workspace).count(),
             "active_projects": DashboardProjectSerializer(projects_queryset, many=True).data,
             "my_tasks": DashboardTaskSerializer(my_tasks_queryset, many=True).data,
             "activities": ActivityLogSerializer(activity_queryset, many=True).data,

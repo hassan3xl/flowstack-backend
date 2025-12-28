@@ -3,7 +3,8 @@ from .serializers.project_serializers import (
     ProjectWriteSerializer,
     TaskSerializer,
     CommentSerializer,
-    ProjectMemberSerializer
+    ProjectMemberSerializer,
+    TaskWriteSerializer
 )
 from .serializers.workspace_serializers import (
     WorkspaceSerializer,

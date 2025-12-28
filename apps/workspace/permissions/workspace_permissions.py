@@ -1,31 +1,43 @@
 from rest_framework import permissions
+from ..models import WorkspaceMember, Workspace
 
-from ..models import WorkspaceMember
+
+
+def get_workspace_from_obj(obj):
+    """
+    Safely resolve the Workspace instance from any related object.
+
+    Supported:
+    - Workspace
+    - WorkspaceChannel
+    - ActivityLog
+    - WorkspaceInvitation
+    - Any model with a `workspace` FK
+    """
+    if hasattr(obj, "workspace"):
+        return obj.workspace
+    return obj
 
 class IsWorkspaceMember(permissions.BasePermission):
     """
-    Allows access to users who are members of the workspace.
-    Read-only for normal members, unless specified otherwise.
+    User must be a member of the workspace (or owner).
     """
+
+    def has_permission(self, request, view):
+        # Required for list, create, and custom actions
+        return bool(request.user and request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
-        # 1. Superusers always have access
         if request.user.is_superuser:
             return True
 
-        # 2. Check if the object is the Workspace itself
-        # If the view is handling a related object (like a Channel), 
-        # you might need to check 'obj.workspace' instead.
-        workspace = obj
-        if hasattr(obj, 'workspace'):
-            workspace = obj.workspace
+        workspace = obj if isinstance(obj, Workspace) else obj.workspace
 
-        # 3. Allow if user is the explicit owner defined on the Workspace model
         if workspace.owner == request.user:
             return True
 
-        # 4. Check membership existence
         return WorkspaceMember.objects.filter(
-            workspace=workspace, 
+            workspace=workspace,
             user=request.user
         ).exists()
 
@@ -33,39 +45,50 @@ class IsWorkspaceMember(permissions.BasePermission):
 class IsWorkspaceAdmin(permissions.BasePermission):
     """
     Allows access only to Workspace Admins and Owners.
-    Used for updating workspace details (PUT, PATCH).
+
+    Use cases:
+    - Update workspace
+    - Manage members
+    - Create/update/delete channels
+    - Send invitations
     """
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
 
-        workspace = obj
-        if hasattr(obj, 'workspace'):
-            workspace = obj.workspace
+        workspace = get_workspace_from_obj(obj)
 
-        # Owner always has admin rights
+        # Workspace owner always has admin rights
         if workspace.owner == request.user:
             return True
 
-        # Check for 'admin' or 'owner' role in the membership table
         return WorkspaceMember.objects.filter(
             workspace=workspace,
             user=request.user,
-            role__in=['admin', 'owner']
+            role="admin"
         ).exists()
 
 
 class IsWorkspaceOwner(permissions.BasePermission):
     """
-    Strict permission: Only the actual owner can perform this action.
-    Usually applied to DELETE actions.
+    Strict permission.
+
+    Only the actual Workspace owner may perform the action.
+    Typical usage:
+    - Delete workspace
+    - Transfer ownership
     """
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-            
-        workspace = obj
-        if hasattr(obj, 'workspace'):
-            workspace = obj.workspace
 
+        workspace = get_workspace_from_obj(obj)
         return workspace.owner == request.user

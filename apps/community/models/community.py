@@ -39,9 +39,9 @@ class Community(models.Model):
 
     category = models.ForeignKey(
         CommunityCategory,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='communities'
+        on_delete=models.CASCADE,
+        related_name='communities',
+        default=None
     )
 
     created_by = models.ForeignKey(

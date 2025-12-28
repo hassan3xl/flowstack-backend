@@ -178,7 +178,7 @@ def create_comment_service(user, task, content):
                 recipients=list(recipients),
                 actor=user,
                 title="New Comment",
-                message=f"{user.username} commented on {task.title}",
+                message=f"{user.profile.username} commented on {task.title}",
                 target_obj=task,
                 category='comment_mention'
             )

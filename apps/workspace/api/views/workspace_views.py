@@ -7,8 +7,9 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import NotFound
-from workspace.permissions.workspace_permissions import (
-    IsWorkspaceMember
+
+from workspace.permissions.permissions import (
+    IsWorkspaceMemberOrAdmin,
 )
 
 from workspace.models import (
@@ -28,41 +29,18 @@ from workspace.api import (
     WorkspaceInvitationSerializer,
 )
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+from notifications.notification_services import NotificationService
+
+
 User = get_user_model()
 
-from django.utils import timezone
-
-class WorkspaceDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, workspace_id):
-        user = request.user
-
-        # Ensure user is a member of workspace
-        workspace = get_object_or_404(
-            Workspace,
-            id=workspace_id,
-            members__user=user
-        )
-
-        projects_qs = Project.objects.filter(workspace=workspace)
-        tasks_qs = Task.objects.filter(project__workspace=workspace)
-
-        data = {
-            "projects": projects_qs.count(),
-            "tasks": tasks_qs.count(),
-            "completed_tasks": tasks_qs.filter(
-                status=Task.StatusChoices.COMPLETED
-            ).count(),
-            "members": WorkspaceMember.objects.filter(workspace=workspace).count(),
-        }
-
-        serializer = WorkspaceDashboardSerializer(data)
-        return Response(serializer.data)
     
 class WorkspaceViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated, IsWorkspaceMember]
-    queryset = Workspace.objects.all()
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin
+    ]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -92,6 +70,7 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="members")
     def members(self, request, pk=None):
         workspace = self.get_object()
+        self.check_object_permissions(request, workspace)
 
         members = WorkspaceMember.objects.filter(
             workspace=workspace
@@ -102,7 +81,10 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
 
 class CreateWorkspaceInvitationView(generics.CreateAPIView):
     serializer_class = CreateWorkspaceInvitationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin
+    ]
 
     def get_serializer_context(self):
         """Pass request and workspace to serializer for validation"""
@@ -134,11 +116,15 @@ class CreateWorkspaceInvitationView(generics.CreateAPIView):
             invited_by=self.request.user
         )
 
+        
 
 
 
 class RemoveWorkspaceMemberView(generics.DestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin
+    ]
 
     def delete(self, request, *args, **kwargs):
         workspace_id = self.kwargs.get('workspace_id')
@@ -206,7 +192,10 @@ class RemoveWorkspaceMemberView(generics.DestroyAPIView):
         )
     
 class LeaveWorkspaceView(generics.DestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin
+    ]
 
     def delete(self, request, *args, **kwargs):
         workspace_id = self.kwargs.get('workspace_id')
@@ -243,7 +232,9 @@ class LeaveWorkspaceView(generics.DestroyAPIView):
 
 class GetWorkspaceInvitationsView(generics.ListAPIView):
     serializer_class = WorkspaceInvitationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_queryset(self):
         return WorkspaceInvitation.objects.filter(
@@ -314,8 +305,11 @@ class RejectWorkspaceInvitationView(APIView):
 
 class WorkspaceImageUploadView(generics.UpdateAPIView):
     serializer_class = UploadWorkspaceLogoSerializer
-    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin    
+    ]
 
     def get_object(self):
         workspace_id = self.kwargs["workspace_id"]
@@ -337,7 +331,12 @@ class WorkspaceImageUploadView(generics.UpdateAPIView):
 
 
 class WorkspaceMemberRoleView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsWorkspaceMemberOrAdmin
+    ]
+    
+    
 
     def post(self, request, workspace_id, user_id):
         workspace = get_object_or_404(Workspace, id=workspace_id)

@@ -54,21 +54,13 @@ class CommunitySerializer(serializers.ModelSerializer):
         return None
 
 class CreateCommunitySerializer(serializers.ModelSerializer):
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=CommunityCategory.objects.all(),
+        source='category'
+    )
     class Meta:
         model = Community
-        fields = ['id', 'name', 'description', 'visibility', 'category', 'icon']
-
-    def create(self, validated_data):
-        request = self.context.get('request')
-        # Automatically assign the creator and add them as an Admin member
-        community = Community.objects.create(created_by=request.user, **validated_data)
-        CommunityMember.objects.create(
-            community=community,
-            user=request.user,
-            role='admin'
-
-        )
-        return community
+        fields = ['id', 'name', 'description', 'visibility', 'category_id', 'icon']
     
 
 class CreateCommunityInvitationSerializer(serializers.ModelSerializer):

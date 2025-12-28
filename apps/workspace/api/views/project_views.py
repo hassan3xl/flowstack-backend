@@ -7,7 +7,13 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 from django.db import models
-from workspace.permissions.project_permissions import HasProjectAccess
+# from workspace.permissions.project_permissions import HasProjectAccess
+# from workspace.permissions.workspace_permissions import IsWorkspaceMember
+from workspace.permissions.permissions import (
+    IsProjectCollaboratorOrWorkspaceAdmin, 
+    IsTaskCollaboratorOrProjectAdmin
+)
+
 from workspace.models import (
     Project, 
     Task, 
@@ -22,6 +28,7 @@ from workspace.api import (
     ProjectSerializer,
     ProjectWriteSerializer,
     TaskSerializer,
+    TaskWriteSerializer,
     CommentSerializer,
     ProjectMemberSerializer
 )
@@ -38,7 +45,11 @@ from django.db.models import Q
 
 # ----------------------- PROJECT -----------------------
 class ProjectViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+
+    permission_classes = [
+        IsAuthenticated, 
+        IsProjectCollaboratorOrWorkspaceAdmin
+    ]
 
     def get_serializer_class(self):
         if self.action in ["create"]:
@@ -49,101 +60,88 @@ class ProjectViewSet(viewsets.ModelViewSet):
         workspace_id = self.kwargs.get("workspace_id")
         user = self.request.user
 
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-
         try:
-            membership = WorkspaceMember.objects.get(workspace_id=workspace_id, user=user)
+            membership = getattr(self.request, 'workspace_memberships', None) or \
+                WorkspaceMember.objects.get(workspace_id=workspace_id, user=user)
         except WorkspaceMember.DoesNotExist:
-            return Project.objects.none()
+            return Project.objects.all()
         
         base_qs = Project.objects.filter(workspace_id=workspace_id)
+        
+        # Admins see everything
         if membership.role in ['owner', 'admin']:
             return base_qs
         
+        # Members see Public + Their Projects
         return base_qs.filter(
             Q(visibility='public') | 
             Q(members__user=user)
         ).distinct()
 
-
     def perform_create(self, serializer):
         workspace_id = self.kwargs.get("workspace_id")
         workspace = get_object_or_404(Workspace, id=workspace_id)
-        user = self.request.user
 
         create_project_service(
-            user=user,
+            user=self.request.user,
             workspace=workspace,
             project_data=serializer.validated_data
         )
 
-    def perform_update(self, serializer):
-        workspace_id = self.kwargs.get("workspace_id")
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-        user = self.request.user
 
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
-
-        serializer.save()
-
-        
-
-    def perform_destroy(self, instance):
-        workspace_id = self.kwargs.get("workspace_id")
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-        user = self.request.user
-
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
-
-        instance.delete()
-
-
-# ----------------------- TASKS -----------------------
 class TaskListCreateView(generics.ListCreateAPIView):
-    serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsTaskCollaboratorOrProjectAdmin
+    ]
+
+    def get_serializer_class(self):
+        # "self.action" does not exist in Generic Views, use request.method
+        if self.request.method == 'POST':
+            return TaskWriteSerializer
+        return TaskSerializer
 
     def get_queryset(self):
-        workspace_id = self.kwargs.get("workspace_id")
-        project_id = self.kwargs.get("project_id")
-        user = self.request.user
-
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-        project = get_object_or_404(Project, id=project_id, workspace=workspace)
-
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
-
-        return Task.objects.filter(project=project).order_by("-created_at")
+        # Optimization: Fetch workspace/project ONCE to validate existence, 
+        # but you don't need to fetch them just to filter the tasks if you trust the IDs.
+        # Ideally, validate hierarchy:
+        return Task.objects.filter(
+            project__id=self.kwargs["project_id"], 
+            project__workspace_id=self.kwargs["workspace_id"]
+        ).order_by("-created_at")
 
     def perform_create(self, serializer):
         workspace_id = self.kwargs.get("workspace_id")
         project_id = self.kwargs.get("project_id")
         user = self.request.user
 
-        workspace = get_object_or_404(Workspace, id=workspace_id)
-        project = get_object_or_404(Project, id=project_id, workspace=workspace)
+        # Fetch project with validation
+        project = get_object_or_404(Project, id=project_id, workspace_id=workspace_id)
 
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
+        # 1. Save the task first (to get an ID and Object)
+        task = serializer.save(project=project, created_by=user)
 
-        # Send notifications to all project members
-        members = [m.user for m in project.members.all()]
-        NotificationService.send_bulk_notification(
-            users=members,
-            title=f"New Task Added",
-            message=f"A new task has been added to project '{project.title}'.",
-            channels=["in_app", "email"]
-        )
-
-        serializer.save(project=project, created_by=user)
-
+        # 2. Notifications (Refined)
+        # We perform this AFTER save to ensure the task actually exists
+        members = project.members.all().select_related('user') # Optimization
+        recipient_users = [m.user for m in members if m.user != user] # Exclude self
+        
+        if recipient_users:
+            NotificationService.send_bulk_notification(
+                recipients=recipient_users,
+                actor=user,
+                title="New Task Added",
+                message=f"New task '{task.title}' added to project '{project.title}'.",
+                target_obj=task, # Point to the task, not the project
+                category='task_added',
+            )
 
 class TaskRetrieveUpdateView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsTaskCollaboratorOrProjectAdmin
+    ]
+
     lookup_field = "id"
     lookup_url_kwarg = "task_id"
 
@@ -155,8 +153,6 @@ class TaskRetrieveUpdateView(generics.RetrieveUpdateDestroyAPIView):
         workspace = get_object_or_404(Workspace, id=workspace_id)
         project = get_object_or_404(Project, id=project_id, workspace=workspace)
 
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
 
         return Task.objects.filter(project=project)
 
@@ -170,8 +166,6 @@ class TaskRetrieveUpdateView(generics.RetrieveUpdateDestroyAPIView):
         project = get_object_or_404(Project, id=project_id, workspace=workspace)
         task = get_object_or_404(Task, id=task_id, project=project)
 
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
 
         serializer.save(project=project)
 
@@ -183,8 +177,6 @@ class TaskRetrieveUpdateView(generics.RetrieveUpdateDestroyAPIView):
         workspace = get_object_or_404(Workspace, id=workspace_id)
         project = get_object_or_404(Project, id=project_id, workspace=workspace)
 
-        if not WorkspaceMember.objects.filter(workspace=workspace, user=user).exists():
-            raise PermissionDenied("You are not a member of this workspace.")
 
         instance.delete()
 
@@ -192,7 +184,10 @@ class TaskRetrieveUpdateView(generics.RetrieveUpdateDestroyAPIView):
 # ----------------------- PROJECT MEMBERS -----------------------
 class ProjectMemberView(generics.ListCreateAPIView):
     serializer_class = ProjectMemberSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated,
+        IsProjectCollaboratorOrWorkspaceAdmin    
+    ]
 
     def get_queryset(self):
         project_id = self.kwargs.get("project_id")
@@ -249,7 +244,11 @@ class ProjectMemberView(generics.ListCreateAPIView):
 
 # ----------------------- TASK ACTIONS -----------------------
 class StartTaskView(APIView):
-    # permission_classes = [IsAuthenticated, HasProjectAccess] # Keep your custom permission
+    permission_classes = [
+        IsAuthenticated, 
+        IsProjectCollaboratorOrWorkspaceAdmin
+    ]
+
 
     def post(self, request, workspace_id, project_id, task_id):
         # Validation Logic stays in View (Fast fail)
@@ -268,7 +267,11 @@ class StartTaskView(APIView):
 
 
 class CompleteTaskView(APIView):
-    # permission_classes = [IsAuthenticated, HasProjectAccess]
+    permission_classes = [
+        IsAuthenticated, 
+        IsProjectCollaboratorOrWorkspaceAdmin
+    ]
+
 
     def post(self, request, workspace_id, project_id, task_id):
         task = get_object_or_404(Task, id=task_id, project_id=project_id)
@@ -291,7 +294,10 @@ class CompleteTaskView(APIView):
 # ----------------------- COMMENTS -----------------------
 class CommentListCreateView(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsAuthenticated, 
+        IsProjectCollaboratorOrWorkspaceAdmin
+    ]
     
     def get_queryset(self):
         # We don't need the service for GET, just standard optimization
