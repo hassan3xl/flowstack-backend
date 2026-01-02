@@ -32,8 +32,8 @@ class UserAdmin(BaseUserAdmin):
 
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "first_name", "last_name", "phone_number")
-    search_fields = ("user__email", "first_name", "last_name", "phone_number")
+    list_display = ("user", "first_name", "last_name", "username")
+    search_fields = ("user__email", "first_name", "last_name", "username")
 
 
 

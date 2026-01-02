@@ -22,8 +22,16 @@ class Profile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+
     class Meta:
         db_table = "user_profiles"
+        indexes = [
+            # Create an index for phone_number
+            models.Index(fields=['phone_number']),
+            
+            # Composite Index: fast for searching first AND last name together
+            models.Index(fields=['first_name', 'last_name']),
+        ]
 
     def __str__(self):
         return f"{self.user.email}'s Profile"

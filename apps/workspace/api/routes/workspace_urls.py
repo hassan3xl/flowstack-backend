@@ -56,7 +56,7 @@ urlpatterns += [
     ),
 
     path(
-        "workspaces/<uuid:workspace_id>/role/",
+        "workspaces/<uuid:workspace_id>/logo/",
         WorkspaceImageUploadView.as_view(),
         name="upload-workspace-icon",
     ),

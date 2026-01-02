@@ -1,0 +1,70 @@
+# services:
+#   web:
+#     build: .
+#     command: python manage.py runserver 0.0.0.0:8000
+#     volumes:
+#       - .:/app
+#     ports:
+#       - "8000:8000"
+#     env_file:
+#       - .env
+#     depends_on: # Wait for Redis to start before starting Django
+#       - redis
+
+#   redis:
+#     image: redis:7-alpine # A lightweight official Redis image
+#     ports:
+#       - "6379:6379"
+
+services:
+  # 1. The Load Balancer (Entry Point)
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80" # We expose port 80 (standard HTTP) to your laptop
+    depends_on:
+      - web
+
+  # 2. Your Django App (Scaled)
+  web:
+    build: .
+    # Note: We do NOT expose ports here anymore. Only Nginx talks to web.
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    deploy:
+      replicas: 1 # <--- THIS IS LOAD BALANCING! We run 3 copies.
+
+  # 3. The Database (Local Postgres)
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=mydb
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+
+  # 4. The Cache (Redis)
+  redis:
+    image: redis:7-alpine
+
+  celery:
+    build: .
+    command: celery -A src worker --loglevel=info # Change 'src' to your project name
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+volumes:
+  postgres_data:

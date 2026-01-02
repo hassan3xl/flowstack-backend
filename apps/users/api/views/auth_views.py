@@ -6,49 +6,78 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import status
-from ..serializers.auth_serializers import RegisterSerializer, UserSerializer, LoginSerializer
+from ..serializers.auth_serializers import CustomRegisterSerializer, UserSerializer, LoginSerializer
+from rest_framework.views import APIView
+from users.utils.send_otp import send_otp_email
+from users.models import OTPRequest
+
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
 
 User = get_user_model()
 
+class GoogleLogin(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    # callback_url must match EXACTLY what you put in Google Cloud Console
+    callback_url = "http://localhost:3000" 
+    client_class = OAuth2Client
 
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]
+    
+class RequestOTPView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        # Check if user exists (for password reset flow)
+        # For Registration, you might skip this check.
+        if not User.objects.filter(email=email).exists():
+             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        refresh = RefreshToken.for_user(user)
-
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "user": UserSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
+        send_otp_email(email)
+        return Response({"message": "OTP sent successfully"})
 
 
 
-class LoginView(generics.GenericAPIView):
-    serializer_class = LoginSerializer
-    permission_classes = [permissions.AllowAny]
+class VerifyOTPView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        otp_code = request.data.get('otp')
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            otp_record = OTPRequest.objects.get(email=email)
+        except OTPRequest.DoesNotExist:
+            return Response({"error": "Request new OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
-        email = serializer.validated_data["email"]
-        password = serializer.validated_data["password"]
+        if otp_record.otp_code == otp_code and otp_record.is_valid():
+            # Mark as verified so it can be used for the next step (reset password)
+            otp_record.is_verified = True
+            otp_record.save()
+            return Response({"message": "OTP Verified Successfully"})
+        else:
+            return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        
 
-        user = authenticate(request, email=email, password=password)
-        if not user:
-            return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+class ResetPasswordView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        new_password = request.data.get('new_password')
+        
+        # Security Check: Ensure OTP was verified recently
+        try:
+            otp_record = OTPRequest.objects.get(email=email)
+            if not otp_record.is_verified:
+                 return Response({"error": "Please verify OTP first"}, status=403)
+        except OTPRequest.DoesNotExist:
+             return Response({"error": "Invalid Request"}, status=403)
 
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "user": UserSerializer(user).data
-        })
+        # Reset Password
+        user = User.objects.get(email=email)
+        user.set_password(new_password)
+        user.save()
+        
+        # Clean up used OTP
+        otp_record.delete()
+        
+        return Response({"message": "Password reset successfully"})

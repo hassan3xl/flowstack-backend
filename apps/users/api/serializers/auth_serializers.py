@@ -4,50 +4,14 @@ from users.models import Profile
 from notifications.notification_services import NotificationService
 
 User = get_user_model()
+from dj_rest_auth.registration.serializers import RegisterSerializer
+from rest_framework import serializers
+from notifications.notification_services import NotificationService
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password1 = serializers.CharField(write_only=True, style={'input_type': 'password'})
-    password2 = serializers.CharField(write_only=True, style={'input_type': 'password'})
-    first_name = serializers.CharField(required=False, allow_blank=True)
-    last_name = serializers.CharField(required=False, allow_blank=True)
+# We inherit from the Library's serializer, not ModelSerializer
+class CustomRegisterSerializer(RegisterSerializer):
+    username = None
 
-    class Meta:
-        model = User
-        fields = ['email', 'password1', 'password2', 'first_name', 'last_name']
-
-    def validate(self, data):
-        if data['password1'] != data['password2']:
-            raise serializers.ValidationError({"password": "Passwords do not match."})
-        return data
-
-    def create(self, validated_data):
-        password = validated_data.pop('password1')
-        validated_data.pop('password2')
-
-        # Pop optional fields safely
-        first_name = validated_data.pop('first_name', '').strip()
-        last_name = validated_data.pop('last_name', '').strip()
-
-        # Create the user
-        user = User.objects.create_user(password=password, **validated_data)
-
-        # Always create profile, even if no names provided
-        Profile.objects.create(
-            user=user,
-            first_name=first_name or "",
-            last_name=last_name or ""
-        )
-
-        NotificationService.send_notification(
-            recipient=user,
-            actor=user,
-            title="Welcome to FlowStack!",
-            message="Your account has been created successfully, start managing projects now!",
-            target_obj=user,
-            category='system_alert',
-        )
-
-        return user
 
 
 

@@ -30,7 +30,6 @@ class AccountProfileSerializer(serializers.ModelSerializer):
         return f"{obj.first_name} {obj.last_name}".strip()
 
 class AccountProfileAvatarSerializer(serializers.ModelSerializer):
-    # Remove SerializerMethodField, use ImageField properly
     avatar = serializers.ImageField(required=True)
     
     class Meta:

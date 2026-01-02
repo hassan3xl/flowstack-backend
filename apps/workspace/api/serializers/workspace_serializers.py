@@ -12,13 +12,22 @@ User = get_user_model()
 
 
 
-class UploadWorkspaceLogoSerializer(serializers.Serializer):
-    icon = serializers.ImageField(required=True)
+class UploadWorkspaceLogoSerializer(serializers.ModelSerializer):
+    logo = serializers.ImageField(required=True)
+
+    class Meta:
+        model = Workspace
+        fields = ['logo']
 
     def update(self, instance, validated_data):
-        instance.icon = validated_data['icon']
+        instance.logo = validated_data.get('logo', instance.logo)
         instance.save()
         return instance
+
+    def validate_logo(self, value):
+        if value.size > 2 * 1024 * 1024:
+            raise serializers.ValidationError("Logo must be under 2MB.")
+        return value
 
 
 class WorkspaceDashboardSerializer(serializers.Serializer):

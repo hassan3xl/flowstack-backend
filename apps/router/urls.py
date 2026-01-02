@@ -7,7 +7,8 @@ from apps.users.api.routes import auth_urls, user_urls, settings_urls
 from apps.notifications.api.routes import urls as notifications_url
 
 urlpatterns = [
-    path('auth/', include(auth_urls)),
+    # auth urls
+    path('', include(auth_urls)),
     # community urls
     path('', include(community_urls)),
 
@@ -19,7 +20,6 @@ urlpatterns = [
     
     # feeds url
     path('posts/', include(posts_urls)),
-
 
     path('settings/', include(settings_urls)),
     path('notifications/', include(notifications_url)),

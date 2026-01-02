@@ -1,13 +1,13 @@
+
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
-from .utils.generate_username import generate_username
-from .models import UserProfile
+from .models import Profile
+
 User = get_user_model()
 
-@receiver(post_save, sender=UserProfile)
-def assign_default_username(sender, instance, created, **kwargs):
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        if not instance.username:  # Only set if user has no username
-            instance.username = generate_username()
-            instance.save(update_fields=["username"])
+        Profile.objects.create(user=instance)

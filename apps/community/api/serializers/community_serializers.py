@@ -24,6 +24,7 @@ class CommunitySerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     is_owner = serializers.SerializerMethodField()
     user_role = serializers.SerializerMethodField()
+    member = CommunityMemberSerializer(read_only=True)
     member_count = serializers.IntegerField(source='members.count', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     channels = CommunityChannelSerializer(many=True, read_only=True)
@@ -33,7 +34,7 @@ class CommunitySerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'icon', 'visibility', 
             'category', 'category_name', 'created_by', 'created_at', 
-            'member_count', 'is_owner', 'user_role', 'channels'
+            'member_count', 'is_owner', 'user_role', "member", 'channels'
         ]
         read_only_fields = ['id', 'created_by', 'created_at']
 

@@ -12,6 +12,10 @@ from decouple import config
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from datetime import timedelta
+from decouple import config
+
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -35,13 +39,22 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # packages
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "rest_framework",
-    "rest_framework.authtoken",
-    "corsheaders",
+
+    # Third Party
+    'rest_framework',
+    'rest_framework.authtoken', # Required by dj-rest-auth
+    'rest_framework_simplejwt',
+    # 'rest_framework_simplejwt.token_blacklist', # For logout to work properly
+    
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google', # Google Provider
+
+    # 'debug_toolbar', # Only load Debug Toolbar if we are NOT testing
     
     # local apps
     "users",
@@ -92,6 +105,8 @@ cloudinary.config(
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
+
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -103,38 +118,58 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
 ]
+import socket
+hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+INTERNAL_IPS = [ip[:-1] + "1" for ip in ips] + ["127.0.0.1"]
+
 
 ROOT_URLCONF = "src.urls"
+SITE_ID = 1
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        # "rest_framework.authentication.TokenAuthentication",
-        # "rest_framework.authentication.SessionAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # "rest_framework.authentication.TokenAuthentication",  # Basic static token auth
+        # "rest_framework.authentication.SessionAuthentication",  # Django admin & templates
+        "rest_framework_simplejwt.authentication.JWTAuthentication",  # SPA & mobile apps
     ],
+
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
+    
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',  # For guests (not logged in)
+        'rest_framework.throttling.UserRateThrottle'   # For logged-in users
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '10/minute',  # Guests get 10 requests per min
+        'user': '1000/day',    # Users get 1000 requests per day
+        'sensitive_action': '5/minute', # <--- NEW SCOPE
+    }
 }
-from datetime import timedelta
+
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),   
-    "ROTATE_REFRESH_TOKENS": True,                   
-    "BLACKLIST_AFTER_ROTATION": True,                
+    # 'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True, # Important: Issue new refresh token on use
+    'BLACKLIST_AFTER_ROTATION': True, # Important: Old refresh token becomes invalid
+    'AUTH_HEADER_TYPES': ('Bearer',),
     "UPDATE_LAST_LOGIN": True,                       
+
+}
+REST_USE_JWT = True
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': None,          # <--- Must be explicitly None
+    'JWT_AUTH_REFRESH_COOKIE': None,  # <--- Must be explicitly None
+    'JWT_AUTH_HTTPONLY': False,       # Optional, but good to be explicit
 }
 
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None  # keep this since you removed username field
 ACCOUNT_EMAIL_VERIFICATION = "none"       # keep this if you don’t want verification
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_LOGIN_METHODS = {"email"}
-
-
-# Email backend for development
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-# For production, use:
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 TEMPLATES = [
     {
@@ -154,14 +189,16 @@ TEMPLATES = [
 WSGI_APPLICATION = "src.wsgi.application"
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-from decouple import config
-
 DATABASES = {
-    # "default": {
-    #     "ENGINE": "django.db.backends.sqlite3",
-    #     "NAME": BASE_DIR / "db.sqlite3",
+
+    # db from docker for development
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.postgresql',
+    #     'NAME': 'mydb',              # Matches POSTGRES_DB in compose
+    #     'USER': 'myuser',            # Matches POSTGRES_USER
+    #     'PASSWORD': 'mypassword',    # Matches POSTGRES_PASSWORD
+    #     'HOST': 'db',                # The service name in docker-compose
+    #     'PORT': 5432,
     # },
     "default": dj_database_url.config(default=os.getenv("NEON_DB"))
 }
@@ -177,6 +214,20 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+
+# CACHING
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        # Notice the location is "redis://redis:6379"
+        # The second "redis" is the name of the service in docker-compose!
+        "LOCATION": "redis://redis:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -223,3 +274,54 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
+
+# Email backend for development
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# For production, use:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+
+EMAIL_HOST = 'smtp.resend.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'resend'  # This is always 'resend' for SMTP
+EMAIL_HOST_PASSWORD = 're_123456789'  # Your actual Resend API Key
+DEFAULT_FROM_EMAIL = 'onboarding@resend.dev'  # Or your verified domain
+
+
+# CELERY SETTINGS
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+
+
+# At the bottom of settings.py
+if DEBUG:
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+    }
+
+
+# Check if we are running pytest or standard django tests
+TESTING = 'pytest' in sys.modules or 'test' in sys.argv
+
+# ONLY load Debug Toolbar if we are NOT testing
+if not TESTING:
+    # 1. Add the App
+    INSTALLED_APPS += ['debug_toolbar']
+    
+    # 2. Add the Middleware (Insert at the top is best)
+    MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+    
+    # 3. Add the Config
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+    }
+    
+    # 4. Internal IPs (Docker fix)
+    import socket
+    try:
+        hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+        INTERNAL_IPS = [ip[:-1] + "1" for ip in ips] + ["127.0.0.1"]
+    except Exception:
+        INTERNAL_IPS = ["127.0.0.1"]
