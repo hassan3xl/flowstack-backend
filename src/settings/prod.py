@@ -6,14 +6,12 @@ DEBUG = False
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 
-# ALLOWED_HOSTS = os.environ["DJANGO_ALLOWED_HOSTS"].split(",")
-DJANGO_ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "vercel.app",
-    "flowstack-backend.onrender.com",
-    "flowstack-gamma.vercel.app",
-]
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS",
+    "localhost,127.0.0.1"
+).split(",")
+
+
 
 DATABASES = {
 

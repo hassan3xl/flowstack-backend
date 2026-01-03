@@ -22,15 +22,15 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-key")
 DATABASES = {
 
     # db from docker for development
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'mydb',              # Matches POSTGRES_DB in compose
-    #     'USER': 'myuser',            # Matches POSTGRES_USER
-    #     'PASSWORD': 'mypassword',    # Matches POSTGRES_PASSWORD
-    #     'HOST': 'db',                # The service name in docker-compose
-    #     'PORT': 5432,
-    # },
-    "default": dj_database_url.config(default=os.getenv("NEON_DB"))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mydb',              # Matches POSTGRES_DB in compose
+        'USER': 'myuser',            # Matches POSTGRES_USER
+        'PASSWORD': 'mypassword',    # Matches POSTGRES_PASSWORD
+        'HOST': 'db',                # The service name in docker-compose
+        'PORT': 5432,
+    },
+    # "default": dj_database_url.config(default=os.getenv("NEON_DB"))
 }
 
 STORAGES = {
