@@ -33,6 +33,19 @@ DATABASES = {
     "default": dj_database_url.config(default=os.getenv("NEON_DB"))
 }
 
+STORAGES = {
+    # Media: Goes to Cloudinary
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    
+    # Static: Stays local (or use WhiteNoise in production)
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",

@@ -21,9 +21,6 @@ from decouple import config
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
-
 # Application definition
 import sys
 sys.path.append(str(BASE_DIR / 'apps'))
@@ -99,7 +96,6 @@ cloudinary.config(
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
 
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -150,6 +146,7 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,                       
 
 }
+
 REST_USE_JWT = True
 REST_AUTH = {
     'USE_JWT': True,
@@ -179,22 +176,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "src.wsgi.application"
-
-
-
-
-STORAGES = {
-    # Media: Goes to Cloudinary
-    "default": {
-        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
-    },
-    
-    # Static: Stays local (or use WhiteNoise in production)
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-    },
-}
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
