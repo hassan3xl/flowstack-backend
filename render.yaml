@@ -9,7 +9,7 @@ services:
     startCommand: gunicorn src.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
-        value: src.settings
+        value: src.settings.prod
       - key: PYTHON_VERSION
         value: 3.11
       - key: SECRET_KEY
